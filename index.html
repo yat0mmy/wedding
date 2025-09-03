@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wedding</title>
+  <style>
+    body {
+      margin: 0;
+      background: linear-gradient(270deg, #fdfbf7, #f1e6d6, #fffdf8);
+      background-size: 600% 600%;
+      animation: gradientMove 20s ease infinite;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    @keyframes gradientMove {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* контейнер только для первого видео */
+    .first-video-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh; /* ровно центр экрана */
+    }
+
+    .video-wrapper {
+      width: 102%;
+      max-width: 660px;
+      margin: 4vh auto;
+      border-radius: 20px;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.45);
+      overflow: hidden;
+      background: #000;
+
+      opacity: 0;
+      transform: scale(0.95);
+      transition: opacity .8s ease, transform .8s ease;
+    }
+
+    /* убираем верхний margin у первого */
+    .video-wrapper:first-of-type {
+      margin-top: 0;
+    }
+
+    .video-wrapper.active {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .video-wrapper.fade-out {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+
+    video {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Первый видео-блок отдельно в контейнере -->
+  <div class="first-video-container">
+    <div class="video-wrapper">
+      <video src="video1.mp4" playsinline autoplay muted preload="metadata"></video>
+    </div>
+  </div>
+
+  <!-- Остальные -->
+  <div class="video-wrapper"><video src="video2.mp4" playsinline autoplay muted preload="metadata"></video></div>
+  <div class="video-wrapper"><video src="video3.mp4" playsinline autoplay muted preload="metadata"></video></div>
+  <div class="video-wrapper"><video src="video4.mp4" playsinline autoplay muted preload="metadata"></video></div>
+
+  <div style="height: 50vh;"></div>
+
+  <script>
+    const videos   = document.querySelectorAll("video");
+    const wrappers = document.querySelectorAll(".video-wrapper");
+
+    let autoScrollInProgress = false;
+    let autoScrollAllowed    = true;
+
+    function safePlay(v) {
+      const p = v.play();
+      if (p && typeof p.catch === "function") p.catch(()=>{});
+    }
+
+    function showWrapper(wrapper, video) {
+      wrapper.classList.add("active");
+      wrapper.classList.remove("fade-out");
+      if (video.dataset.finished !== "true") safePlay(video);
+    }
+
+    function hideWrapper(wrapper, video) {
+      if (video.dataset.finished !== "true") video.pause();
+      wrapper.classList.remove("active");
+      wrapper.classList.add("fade-out");
+    }
+
+    window.addEventListener("load", () => {
+      videos.forEach(v => v.dataset.finished = "false");
+      setTimeout(() => showWrapper(wrappers[0], videos[0]), 300);
+    });
+
+    videos.forEach((video, index) => {
+      video.addEventListener("ended", () => {
+        try { video.currentTime = Math.max(0, video.duration - 0.04); } catch(e) {}
+        video.pause();
+        video.dataset.finished = "true";
+
+        const currentWrapper = wrappers[index];
+
+        if (index < videos.length - 1 && autoScrollAllowed) {
+          const nextWrapper = wrappers[index + 1];
+          const nextVideo   = videos[index + 1];
+
+          autoScrollInProgress = true;
+          hideWrapper(currentWrapper, video);
+
+          nextWrapper.scrollIntoView({ behavior: "smooth", block: "center" });
+
+          setTimeout(() => {
+            showWrapper(nextWrapper, nextVideo);
+            autoScrollInProgress = false;
+          }, 600);
+        } else if (index === videos.length - 1) {
+          currentWrapper.classList.add("active");
+          currentWrapper.classList.remove("fade-out");
+          autoScrollAllowed = false;
+        }
+      });
+    });
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const wrapper = entry.target;
+        const video   = wrapper.querySelector("video");
+
+        if (autoScrollInProgress) return;
+
+        if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
+          showWrapper(wrapper, video);
+        } else {
+          hideWrapper(wrapper, video);
+        }
+      });
+    }, { threshold: [0, 0.6] });
+
+    wrappers.forEach(w => observer.observe(w));
+  </script>
+</body>
+</html>
